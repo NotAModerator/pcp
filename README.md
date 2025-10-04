@@ -24,6 +24,12 @@ Initiates the transfer of data. Will callback to `func` when finished.
   - `size`: Size in bytes of each packet minus some extra bytes for headers.
   - `delay`: Time in ticks between packets. Recommended to be above 20 or be proportional to the packet size for best performance.
 
+## toByteArray(string)
+Converts a string byteArray to table.
+
+## toStringByteArray(table)
+Converts a table byteArray to string byteArray.
+
  # Example
 
 ```lua
