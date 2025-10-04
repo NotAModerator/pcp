@@ -1,21 +1,6 @@
 --[[
 	Ping (NOT Port!) Control Protocol (PCP)
-	Manages pings like TCP and acts as its own Promise API, making pings more reliable.
-	
-	docs:
-	- api.onTransfer(id, func): table
-		- id: Name or identifier for this connection.
-		- func: Function that api.transfer will callback to once the transfer completes.
-		NOTE: this function MUST be called globally for PCP to have a valid destination.
-	- api.transfer(conn, bytes, size, freq): nil
-		- conn: Table returned from api.open(). Not to be confused with id.
-		- bytes: String/table bytearray that will be transferred.
-		- size: Size in bytes of each packet minus some packet headers.
-		- delay: Delay measured in ticks between packets sent. Recommended to be above 20 ticks or be proportional to size for optimal performance.
-	- api.toByteArray(str): table
-		- str: string byteArray to convert to a table.concat
-	- api.toStringByteArray(table): string
-		- table: table of bytes to convert to string byteArray.
+	Manages pings similar to TCP and acts as its own Promise, allowing you to ping large amounts of data easier.
 ]]
 
 local api, connections = {}, {}
@@ -93,5 +78,6 @@ function api.transfer(conn, b, size, delay)
 		end
 	end, uuid)
 end
+
 
 return api
