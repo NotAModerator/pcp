@@ -18,7 +18,7 @@ Creates a table that will be used to contain outgoing packets from pings. Return
 > [!NOTE]
 > This function should be ran **before** starting a transfer, and should be ran **globally** (Meaning that it should be in a function or event that every client will trigger) or inside of a ping.
 
-## transfer(id, conn, bytes, size, delay)
+## transfer(conn, bytes, size, delay)
 Initiates the transfer of data. Will callback to `func` when finished.
   - `conn`: Table of the connection made by onTransfer().
   - `bytes`: Table or string byteArray of the data you wish to send.
