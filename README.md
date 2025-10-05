@@ -7,7 +7,6 @@ Manages Figura pings similar to TCP, making them easier to use for larger sets o
 ```lua
 local animatedText = require("pcp")
  ```
-- 3: "Sync Pings" should be enabled in your Figura options to make transferring stable. This can be enabled in Settings -> Dev -> Sync Pings -> ON
 
 # Documentation
 
