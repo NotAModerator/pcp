@@ -12,7 +12,7 @@ local animatedText = require("pcp")
 
 ## register(id, func, sticky)
 Creates a function to callback to when a transfer pointing to it is finished.
-  - `id`: Name or identifier of the connection. Converted to numerical index; max 255 entries
+  - `id`: Name or identifier of the callback. Converted to numerical index; max 255 entries
   - `func`: Function that gets called once the transfer finishes. Accepts a table byteArray as an argument.
   - `sticky`: Boolean to set whether to save incoming chunks of data to a table or use the regular ping behaviour.
 > [!NOTE]
