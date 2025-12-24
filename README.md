@@ -1,5 +1,5 @@
 # Ping Control Protocol (PCP) v0.1.0
-Implements features to allow Figura's pings API to perform better for both host and non-hosts.
+Implements features to allow for more performance in Figura's pings API.
 
 # Installation
 - 1: Download `pcp.lua` and move it to your avatars' folder.
