@@ -1,5 +1,5 @@
-# Ping Control Protocol (PCP)
-Manages Figura pings similar to TCP, making them easier to use for larger sets of data.
+# Ping Control Protocol (PCP) v0.1.0
+Implements features to allow Figura's pings API to perform better for both host and non-hosts.
 
 # Installation
 - 1: Download `pcp.lua` and move it to your avatars' folder.
@@ -7,49 +7,45 @@ Manages Figura pings similar to TCP, making them easier to use for larger sets o
 ```lua
 local animatedText = require("pcp")
  ```
-- 3: "Sync Pings" is recommended to help with stability. This can be enabled in Figura Settings -> Dev -> Sync Pings -> ON
 
 # Documentation
 
-## onTransfer(id, func)
-Creates a table that will be used to contain outgoing packets from pings. Returns itself when finished.
-  - `id`: Name or identifier of the connection.
+## register(id, func, sticky)
+Creates a function to callback to when a transfer pointing to it is finished.
+  - `id`: Name or identifier of the connection. Converted to numerical index; max 255 entries
   - `func`: Function that gets called once the transfer finishes. Accepts a table byteArray as an argument.
 > [!NOTE]
-> This function should be ran **before** starting a transfer, and should be ran **globally** (Meaning that it should be in a function or event that every client will trigger) or inside of a ping.
+> This function should be ran **before** starting a transfer, and should be ran **globally**, meaning that it should be in a function or event that every client will trigger.
 
-## transfer(conn, bytes, size, delay)
+## transfer(id, byteArray, timeout, interval)
 Initiates the transfer of data. Will callback to `func` when finished.
-  - `conn`: Table of the connection made by onTransfer().
-  - `bytes`: Table or string byteArray of the data you wish to send.
-  - `size`: Size in bytes of each packet minus some extra bytes for headers.
-  - `delay`: Time in ticks between packets. Recommended to be above 20 or be proportional to the packet size for best performance.
-
-## toByteArray(string)
-Converts a string byteArray to table.
-
-## toStringByteArray(table)
-Converts a table byteArray to string byteArray.
+  - `id`: Identifier for a callback created in register().
+  - `byteArray`: Table byteArray of the data you wish to send.
+  - `timeout`: Amount of times to retry sending all data before terminating the transfer.
+  - `interval`: Time in ticks between packets. Values above 12 or proportional to the data size perform best.
 
  # Example
 
 ```lua
 local pcp = require("pcp")
-local promise = require("./scripts/Promise") --make networking easier, optional to be alongside pcp
+local promise = require("Promise") --make networking easier, optional to be alongside pcp
 
---create the connection that pings will be sent to
-local conn = pcp.onTransfer("myConnection", function (byteArray)
-	log("Successfully sent " .. #byteArray .. " bytes.")
-end)
+--register function(s) to be called once transfer finishes
+--a max of 255 transfers can be executed at once and run in parallel due to packet structure, so this should be fairly spam-proof
+pcp.register("tex", function(byteArray)
+	log("Total bytes sent: ", #byteArray)
+end, true)
 
---trigger a transfer of texture data
+--trigger transfer for "tex"; retries twice at an interval of 8 ticks before terminating.
 local request = net.http:request("https://static.planetminecraft.com/files/resource_media/screenshot/1411/2014-03-15_042718.jpg"):method("GET")
-promise.await(request:send()), 5000):then_(function(stream)
-	local buf = data:createBuffer(stream:available())
-	buf:readFromStream(stream)
-	buf:setPosition(0)
-	local raw = buf:readByteArray()
-	pcp.transfer(conn, pcp.toByteArray(raw), 800, 21)
-	buf:close()
+keybinds:newKeybind("myBind", "key.keyboard.enter"):onPress(function()
+	promise.await(request:send(), 5000):then_(function(stream)
+		local buf = data:createBuffer(stream:available())
+		buf:readFromStream(stream)
+		buf:setPosition(0)
+		local raw = buf:readByteArray()
+		pcp.transfer("tex", {string.byte(raw, 1, -1)}, 2, 8) --convert our data to a table byteArray for use.
+		buf:close()
+	end)
 end)
 ```
