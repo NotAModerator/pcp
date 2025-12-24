@@ -14,8 +14,9 @@ local animatedText = require("pcp")
 Creates a function to callback to when a transfer pointing to it is finished.
   - `id`: Name or identifier of the connection. Converted to numerical index; max 255 entries
   - `func`: Function that gets called once the transfer finishes. Accepts a table byteArray as an argument.
+  - `sticky`: Boolean to set whether to save incoming chunks of data to a table or use the regular ping behaviour.
 > [!NOTE]
-> This function should be ran **before** starting a transfer, and should be ran **globally**, meaning that it should be in a function or event that every client will trigger.
+> This function should be ran **before** starting a transfer, and should be ran **globally**, meaning that it should be in a function or event that every client will trigger on runtime.
 
 ## transfer(id, byteArray, timeout, interval)
 Initiates the transfer of data. Will callback to `func` when finished.
