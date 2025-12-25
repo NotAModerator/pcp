@@ -1,4 +1,4 @@
-# Ping Control Protocol (PCP) v0.1.0
+# Ping Control Protocol (PCP) v0.1.1
 Implements features to allow for more performance in Figura's pings API.
 
 # Installation
