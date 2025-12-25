@@ -1,5 +1,5 @@
---pcp v0.1.0
-local api, funcTbl, queue, queueIdx = {}, {}, {}, 0
+--pcp v0.1.1
+local api, funcTbl, queue = {}, {}, {}
 
 function toChunks(tbl)
 	local str, _tbl = string.char(table.unpack(tbl)), {}
@@ -22,16 +22,24 @@ function chunkConcat(tbl)
 	return str
 end
 
+function getMaxIdx(tbl)
+	local max = 0
+	for k, _ in ipairs(tbl) do
+		if max < k then max = k end
+	end
+	return max
+end
+
 function packetBuilder(tbl)
 	local buf = data:createBuffer()
 	buf:write(#tbl)
 	for i = 1, #tbl do
-		buf:writeUShort(tbl[i].sum)
-		for _, v in ipairs(tbl[i].headers) do
-			buf:write(v)
-		end
-		buf:writeUShort(#tbl[i].dat)
+		buf:write(#tbl[i].dat)
 		buf:writeByteArray(tbl[i].dat)
+		buf:write(tbl[i].func)
+		buf:write(tbl[i].channel)
+		buf:write(tbl[i].idx)
+		buf:writeUShort(tbl[i].sum)
 	end
 	buf:setPosition(0)
 	local raw = buf:readByteArray()
@@ -44,22 +52,20 @@ function pings.transfer(packet)
 	buf:writeByteArray(packet)
 	buf:setPosition(0)
 	for i = 1, buf:read() do
-		local tbl = {buf:readUShort()}
-		for i = 1, 3 do table.insert(tbl, buf:read()) end
-		table.insert(tbl, buf:readUShort())
-		if funcTbl[tbl[2]].recv then
-			funcTbl[tbl[2]].recv[tbl[3]] = funcTbl[tbl[2]].recv[tbl[3]] or {}
-			funcTbl[tbl[2]].recv[tbl[3]][tbl[4]] = buf:readByteArray(tbl[5])
-			if #funcTbl[tbl[2]].recv[tbl[3]] >= tbl[1] then
-				funcTbl[tbl[2]].callback({
-					string.byte(chunkConcat(funcTbl[tbl[2]].recv[tbl[3]]), 1, -1)
+		local raw, f = buf:readByteArray(buf:read()), buf:read()
+		local channel, idx = buf:read(), buf:read()
+		if funcTbl[f].recv then
+			funcTbl[f].recv[channel] = funcTbl[f].recv[channel] or {}
+			funcTbl[f].recv[channel][idx] = raw
+			local sum = buf:readUShort()
+			if #funcTbl[f].recv[channel] == sum then
+				funcTbl[f].callback({
+					string.byte(chunkConcat(funcTbl[f].recv[channel]), 1, -1)
 				})
-				funcTbl[tbl[2]].recv[tbl[3]] = nil
+				funcTbl[f].recv[channel] = nil
 			end
 		else
-			funcTbl[tbl[2]].callback({
-				string.byte(buf:readByteArray(tbl[5]), 1, -1)
-			})
+			funcTbl[f].callback({string.byte(raw, 1, -1)})
 		end
 	end
 	buf:close()
@@ -76,9 +82,11 @@ end
 function api.transfer(id, byteArray, timeout, interval)
 	local _id = getFuncId(id)
 	if _id > 0 then
+		local channel = getMaxIdx(funcTbl[_id].recv) + 1
+		if funcTbl[_id].recv then funcTbl[_id].recv[channel] = {} end
 		table.insert(queue, {
 			func = _id,
-			channel = funcTbl[_id].recv and #funcTbl[_id].recv + 1 or 0,
+			channel = funcTbl[_id].recv and channel or 0,
 			idx = 1,
 			chunks = toChunks(byteArray),
 			timeout = timeout or 1,
@@ -90,21 +98,21 @@ end
 function events.tick()
 	if host:isHost() then
 		local tbl, length = {}, 0
-		for i, v in ipairs(queue) do
-			if world.getTime() % v.interval == 0 then
-				if length < 1024 then
+		for i, v in pairs(queue) do
+			if world:getTime() % v.interval == 0 then
+				if length < 512 then
 					table.insert(tbl, {
 						sum = #v.chunks,
-						headers = {v.func, v.channel, v.idx},
+						func = v.func,
+						channel = v.channel,
+						idx = v.idx,
 						dat = v.chunks[v.idx]
 					})
 					v.idx, length = v.idx + 1, length + #v.chunks[v.idx]
-					if v.idx > #v.chunks then
-						v.idx, v.timeout = 1, v.timeout - 1
-						if v.timeout < 1 then queue[i] = nil end
-					end
-				else
-					queueIdx = queueIdx < #queue and i or 1
+				end
+				if v.idx > #v.chunks then
+					v.idx, v.timeout = 1, v.timeout - 1
+					if v.timeout < 1 then queue[i] = nil end
 				end
 			end
 		end
