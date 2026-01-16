@@ -60,17 +60,19 @@ function pings.transfer(packet)
 	for i = 1, buf:read() do
 		local raw, f = buf:readByteArray(buf:read()), buf:read()
 		local channel, idx = buf:read(), buf:read()
-		if funcTbl[f].recv then
-			funcTbl[f].recv[channel] = funcTbl[f].recv[channel] or {}
-			funcTbl[f].recv[channel][idx] = raw
-			local sum = buf:readLong()
-			local _raw = {string.byte(chunkConcat(funcTbl[f].recv[channel]), 1, -1)}
-			if tableSum(_raw) == sum then
-				funcTbl[f].callback(_raw)
-				funcTbl[f].recv[channel] = nil
+		if funcTbl[f] then
+			if funcTbl[f].recv then
+				funcTbl[f].recv[channel] = funcTbl[f].recv[channel] or {}
+				funcTbl[f].recv[channel][idx] = raw
+				local sum = buf:readLong()
+				local _raw = {string.byte(chunkConcat(funcTbl[f].recv[channel]), 1, -1)}
+				if tableSum(_raw) == sum then
+					funcTbl[f].callback(_raw)
+					funcTbl[f].recv[channel] = nil
+				end
+			else
+				funcTbl[f].callback({string.byte(raw, 1, -1)})
 			end
-		else
-			funcTbl[f].callback({string.byte(raw, 1, -1)})
 		end
 	end
 	buf:close()
@@ -87,8 +89,11 @@ end
 function api.transfer(id, byteArray, timeout, interval)
 	local _id = getFuncId(id)
 	if _id > 0 then
-		local channel = getMaxIdx(funcTbl[_id].recv) + 1
-		if funcTbl[_id].recv then funcTbl[_id].recv[channel] = {} end
+		local channel = 0
+		if funcTbl[_id].recv then
+			channel = getMaxIdx(funcTbl[_id].recv) + 1
+			funcTbl[_id].recv[channel] = {}
+		end
 		table.insert(queue, {
 			func = _id,
 			channel = funcTbl[_id].recv and channel or 0,
