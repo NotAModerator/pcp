@@ -1,4 +1,4 @@
---pcp v0.1.1
+--pcp v0.1.2
 local api, funcTbl, queue = {}, {}, {}
 
 function toChunks(tbl)
@@ -30,6 +30,12 @@ function getMaxIdx(tbl)
 	return max
 end
 
+function tableSum(tbl)
+	local sum = 0
+	for i = 1, #tbl do sum = sum + tbl[i] end
+	return sum
+end
+
 function packetBuilder(tbl)
 	local buf = data:createBuffer()
 	buf:write(#tbl)
@@ -39,7 +45,7 @@ function packetBuilder(tbl)
 		buf:write(tbl[i].func)
 		buf:write(tbl[i].channel)
 		buf:write(tbl[i].idx)
-		buf:writeUShort(tbl[i].sum)
+		buf:writeLong(tbl[i].sum)
 	end
 	buf:setPosition(0)
 	local raw = buf:readByteArray()
@@ -57,11 +63,10 @@ function pings.transfer(packet)
 		if funcTbl[f].recv then
 			funcTbl[f].recv[channel] = funcTbl[f].recv[channel] or {}
 			funcTbl[f].recv[channel][idx] = raw
-			local sum = buf:readUShort()
-			if #funcTbl[f].recv[channel] == sum then
-				funcTbl[f].callback({
-					string.byte(chunkConcat(funcTbl[f].recv[channel]), 1, -1)
-				})
+			local sum = buf:readLong()
+			local _raw = {string.byte(chunkConcat(funcTbl[f].recv[channel]), 1, -1)}
+			if tableSum(_raw) == sum then
+				funcTbl[f].callback(_raw)
 				funcTbl[f].recv[channel] = nil
 			end
 		else
@@ -101,8 +106,12 @@ function events.tick()
 		for i, v in pairs(queue) do
 			if world:getTime() % v.interval == 0 then
 				if length < 512 then
+					local sum = 0
+					for i = 1, #v.chunks do
+						sum = sum + tableSum({string.byte(v.chunks[i], 1, -1)}) 
+					end
 					table.insert(tbl, {
-						sum = #v.chunks,
+						sum = sum,
 						func = v.func,
 						channel = v.channel,
 						idx = v.idx,
