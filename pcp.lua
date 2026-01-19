@@ -14,14 +14,6 @@ function getFuncId(id)
 	return 0
 end
 
-function chunkConcat(tbl)
-	local str = ""
-	for i = 1, #tbl do
-		if tbl[i] then str = str .. tbl[i] end
-	end
-	return str
-end
-
 function getMaxIdx(tbl)
 	local max = 0
 	for k, _ in ipairs(tbl) do
@@ -65,7 +57,7 @@ function pings.transfer(packet)
 				funcTbl[f].recv[channel] = funcTbl[f].recv[channel] or {}
 				funcTbl[f].recv[channel][idx] = raw
 				local sum = buf:readLong()
-				local _raw = {string.byte(chunkConcat(funcTbl[f].recv[channel]), 1, -1)}
+				local _raw = {string.byte(table.concat(funcTbl[f].recv[channel]), 1, -1)}
 				if tableSum(_raw) == sum then
 					funcTbl[f].callback(_raw)
 					funcTbl[f].recv[channel] = nil
@@ -110,7 +102,7 @@ function events.tick()
 		local tbl, length = {}, 0
 		for i, v in pairs(queue) do
 			if world:getTime() % v.interval == 0 then
-				if length < 512 then
+				if length + #v.chunks[v.idx] < 997 then
 					local sum = 0
 					for i = 1, #v.chunks do
 						sum = sum + tableSum({string.byte(v.chunks[i], 1, -1)}) 
