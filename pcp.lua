@@ -1,4 +1,4 @@
---pcp v0.1.2
+--pcp v0.1.3-hotfix
 local api, funcTbl, queue = {}, {}, {}
 
 function toChunks(tbl)
@@ -26,6 +26,12 @@ function tableSum(tbl)
 	local sum = 0
 	for i = 1, #tbl do sum = sum + tbl[i] end
 	return sum
+end
+
+function table.iconcat(tbl)
+	local str = ""
+	for _, v in pairs(tbl) do str = str .. v end
+	return str
 end
 
 function packetBuilder(tbl)
@@ -57,7 +63,7 @@ function pings.transfer(packet)
 				funcTbl[f].recv[channel] = funcTbl[f].recv[channel] or {}
 				funcTbl[f].recv[channel][idx] = raw
 				local sum = buf:readLong()
-				local _raw = {string.byte(table.concat(funcTbl[f].recv[channel]), 1, -1)}
+				local _raw = {string.byte(table.iconcat(funcTbl[f].recv[channel]), 1, -1)}
 				if tableSum(_raw) == sum then
 					funcTbl[f].callback(_raw)
 					funcTbl[f].recv[channel] = nil
