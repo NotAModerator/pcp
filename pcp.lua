@@ -1,4 +1,4 @@
---pcp v0.1.3-hotfix
+--pcp v0.1.4
 local api, funcTbl, queue = {}, {}, {}
 
 function toChunks(tbl)
@@ -60,14 +60,17 @@ function pings.transfer(packet)
 		local channel, idx = buf:read(), buf:read()
 		if funcTbl[f] then
 			if funcTbl[f].recv then
-				funcTbl[f].recv[channel] = funcTbl[f].recv[channel] or {}
-				funcTbl[f].recv[channel][idx] = raw
-				local sum = buf:readLong()
-				local _raw = {string.byte(table.iconcat(funcTbl[f].recv[channel]), 1, -1)}
-				if tableSum(_raw) == sum then
-					funcTbl[f].callback(_raw)
-					funcTbl[f].recv[channel] = nil
+				if not funcTbl[f].recv[channel].c then 
+					funcTbl[f].recv[channel] = {t = false, c = {}, decay = 0} 
 				end
+				funcTbl[f].recv[channel].c[idx] = raw
+				local sum = buf:readLong()
+				local _raw = {string.byte(table.iconcat(funcTbl[f].recv[channel].c), 1, -1)}
+				if tableSum(_raw) == sum and not funcTbl[f].recv[channel].t then
+					funcTbl[f].callback(_raw)
+					funcTbl[f].recv[channel].t = true
+				end
+				funcTbl[f].recv[channel].decay = 0
 			else
 				funcTbl[f].callback({string.byte(raw, 1, -1)})
 			end
@@ -97,7 +100,7 @@ function api.transfer(id, byteArray, timeout, interval)
 			channel = funcTbl[_id].recv and channel or 0,
 			idx = 1,
 			chunks = toChunks(byteArray),
-			timeout = timeout or 1,
+			timeout = math.clamp(timeout, 1, 20) or 1,
 			interval = interval or 1
 		})
 	end
@@ -130,6 +133,15 @@ function events.tick()
 		end
 		local packet = packetBuilder(tbl)
 		if #packet > 4 then pings.transfer(packet) end
+	end
+	for _, v in pairs(funcTbl) do
+		if not v.recv then return end
+		for i, channel in pairs(v.recv) do
+			if channel.decay then
+				channel.decay = channel.decay + 1
+				if channel.decay > 20 then v.recv[i] = {} end
+			end
+		end
 	end
 end
 
