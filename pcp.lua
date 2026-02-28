@@ -14,12 +14,11 @@ function getFuncId(id)
 	return 0
 end
 
-function getMaxIdx(tbl)
-	local max = 0
-	for k, _ in ipairs(tbl) do
-		if max < k then max = k end
+function getVacant(tbl)
+	for k, v in pairs(tbl) do
+		if not v.c then return k end
 	end
-	return max
+	return 1
 end
 
 function tableSum(tbl)
@@ -60,7 +59,7 @@ function pings.transfer(packet)
 		local channel, idx = buf:read(), buf:read()
 		if funcTbl[f] then
 			if funcTbl[f].recv then
-				if not funcTbl[f].recv[channel].c then 
+				if not funcTbl[f].recv[channel] then 
 					funcTbl[f].recv[channel] = {t = false, c = {}, decay = 0} 
 				end
 				funcTbl[f].recv[channel].c[idx] = raw
@@ -92,8 +91,7 @@ function api.transfer(id, byteArray, timeout, interval)
 	if _id > 0 then
 		local channel = 0
 		if funcTbl[_id].recv then
-			channel = getMaxIdx(funcTbl[_id].recv) + 1
-			funcTbl[_id].recv[channel] = {}
+			channel = getVacant(funcTbl[_id].recv) + 1
 		end
 		table.insert(queue, {
 			func = _id,
@@ -139,7 +137,7 @@ function events.tick()
 		for i, channel in pairs(v.recv) do
 			if channel.decay then
 				channel.decay = channel.decay + 1
-				if channel.decay > 20 then v.recv[i] = {} end
+				if channel.decay > 20 then v.recv[i] = nil end
 			end
 		end
 	end
