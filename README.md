@@ -1,4 +1,4 @@
-# Ping Control Protocol (PCP) v0.1.4
+# Ping Control Protocol (PCP) v0.1.5
 Implements features to allow for more performance in Figura's pings API.
 
 # Installation
@@ -13,7 +13,9 @@ local animatedText = require("pcp")
 ## register(id, func, sticky)
 Creates a function to callback to when a transfer pointing to it is finished.
   - `id`: Name or identifier of the callback. Converted to numerical index; max 255 entries
-  - `func`: Function that gets called once the transfer finishes. Accepts a table byteArray as an argument.
+  - `func`: Function that gets called once the transfer finishes. Accepts a few arguments:
+	- `byteArray`: Table byteArray of the data provided from `transfer`. Is `nil` until it has finished.
+	- `p`: Upload percentage of the currently pinging data. Only applies if sticky is enabled.
   - `sticky`: Boolean to set whether to save incoming chunks of data to a table or use the regular ping behaviour.
 > [!NOTE]
 > This function should be ran **before** starting a transfer, and should be ran **globally**, meaning that it should be in a function or event that every client will trigger on runtime.
@@ -33,8 +35,8 @@ local promise = require("Promise") --make networking easier, optional to be alon
 
 --register function(s) to be called once transfer finishes
 --a max of 255 transfers can be executed at once and run in parallel due to packet structure, so this should be fairly spam-proof
-pcp.register("tex", function(byteArray)
-	log("Total bytes sent: ", #byteArray)
+pcp.register("tex", function(byteArray, p)
+	log("Total bytes sent: ", #byteArray, p .. "%")
 end, true)
 
 --trigger transfer for "tex"; retries twice at an interval of 8 ticks before terminating.
@@ -45,7 +47,7 @@ keybinds:newKeybind("myBind", "key.keyboard.enter"):onPress(function()
 		buf:readFromStream(stream)
 		buf:setPosition(0)
 		local raw = buf:readByteArray()
-		pcp.transfer("tex", {string.byte(raw, 1, -1)}, 2, 8) --convert our data to a table byteArray for use.
+		pcp.transfer("tex", {string.byte(raw, 1, -1)}, 2, 8)
 		buf:close()
 	end)
 end)
