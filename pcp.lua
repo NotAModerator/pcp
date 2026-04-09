@@ -96,7 +96,7 @@ function pings.transfer(packet)
 end
 
 function pings.sync(f, key) 
-	funcTbl[f].callback(funcTbl[f].cache[key].raw)
+	if funcTbl[f].cache[key] then funcTbl[f].callback(funcTbl[f].cache[key].raw) end
 end
 
 function api.register(id, func, sticky)
