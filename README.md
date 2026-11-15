@@ -5,7 +5,7 @@ Implements features to allow for more performance in Figura's pings API.
 - 1: Download `pcp.lua` and move it to your avatars' folder.
 - 2: Go to `script.lua` or any script you may have set to run automatically and insert the following snippet. (Recommended to include at the beginning of your script.)
 ```lua
-local animatedText = require("pcp")
+local pcp = require("pcp")
  ```
 
 # Documentation
