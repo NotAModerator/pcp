@@ -1,30 +1,38 @@
---pcp v0.1.4
+--pcp v0.1.5
 local api, funcTbl, queue = {}, {}, {}
 
-function toChunks(tbl)
+local function toChunks(tbl)
 	local str, _tbl = string.char(table.unpack(tbl)), {}
 	for i = 1, #str, 255 do table.insert(_tbl, str:sub(i, i + 254)) end
 	return _tbl
 end
 
-function getFuncId(id)
+local function getFuncId(id)
 	for i = 1, #funcTbl do
 		if funcTbl[i].id == id then return i end
 	end
 	return 0
 end
 
-function getVacant(tbl)
+local function getVacant(tbl)
 	for k, v in pairs(tbl) do
 		if not v.c then return k end
 	end
 	return 1
 end
 
-function tableSum(tbl)
+local function tableSum(tbl)
 	local sum = 0
 	for i = 1, #tbl do sum = sum + tbl[i] end
 	return sum
+end
+
+local function equalTables(a, b)
+	if #a ~= #b then return false end
+	for k, v in pairs(a) do
+		if v ~= b[k] then return end
+	end
+	return true
 end
 
 function table.iconcat(tbl)
@@ -33,7 +41,7 @@ function table.iconcat(tbl)
 	return str
 end
 
-function packetBuilder(tbl)
+local function packetBuilder(tbl)
 	local buf = data:createBuffer()
 	buf:write(#tbl)
 	for i = 1, #tbl do
@@ -60,14 +68,23 @@ function pings.transfer(packet)
 		if funcTbl[f] then
 			if funcTbl[f].recv then
 				if not funcTbl[f].recv[channel] then 
-					funcTbl[f].recv[channel] = {t = false, c = {}, decay = 0} 
+					funcTbl[f].recv[channel] = {t = false, c = {}, decay = 0}
 				end
 				funcTbl[f].recv[channel].c[idx] = raw
 				local sum = buf:readLong()
-				local _raw = {string.byte(table.iconcat(funcTbl[f].recv[channel].c), 1, -1)}
-				if tableSum(_raw) == sum and not funcTbl[f].recv[channel].t then
-					funcTbl[f].callback(_raw)
-					funcTbl[f].recv[channel].t = true
+				local _raw = funcTbl[f].cache[tostring(sum)] or {
+					raw = {string.byte(table.iconcat(funcTbl[f].recv[channel].c), 1, -1)}
+				}
+				_raw.plr = world.getPlayers()
+				if not funcTbl[f].recv[channel].t then
+					local _sum = tableSum(_raw.raw)
+					if _sum == sum then
+						funcTbl[f].callback(_raw.raw)
+						funcTbl[f].cache[tostring(sum)] = _raw
+						funcTbl[f].recv[channel].t = true
+					else
+						funcTbl[f].callback(nil, _sum / sum * 100)
+					end
 				end
 				funcTbl[f].recv[channel].decay = 0
 			else
@@ -78,19 +95,29 @@ function pings.transfer(packet)
 	buf:close()
 end
 
+function pings.sync(f, key) 
+	if funcTbl[f].cache[key] then funcTbl[f].callback(funcTbl[f].cache[key].raw) end
+end
+
 function api.register(id, func, sticky)
 	table.insert(funcTbl, {
 		id = id,
 		callback = func,
-		recv = sticky and {} or nil
+		recv = sticky and {} or nil,
+		cache = {}
 	})
 end
 
 function api.transfer(id, byteArray, timeout, interval)
-	local _id = getFuncId(id)
+	local _id, sum = getFuncId(id), tableSum(byteArray, 1, -1)
 	if _id > 0 then
 		local channel = 0
 		if funcTbl[_id].recv then
+			local cacheIdx = funcTbl[_id].cache[tostring(sum)]
+			if cacheIdx and equalTables(cacheIdx.plr, world.getPlayers()) then
+				pings.sync(_id, tostring(sum))
+				return
+			end
 			channel = getVacant(funcTbl[_id].recv) + 1
 		end
 		table.insert(queue, {
@@ -99,7 +126,8 @@ function api.transfer(id, byteArray, timeout, interval)
 			idx = 1,
 			chunks = toChunks(byteArray),
 			timeout = math.clamp(timeout, 1, 20) or 1,
-			interval = interval or 1
+			interval = interval or 1,
+			sum = sum
 		})
 	end
 end
@@ -110,12 +138,8 @@ function events.tick()
 		for i, v in pairs(queue) do
 			if world:getTime() % v.interval == 0 then
 				if length + #v.chunks[v.idx] < 997 then
-					local sum = 0
-					for i = 1, #v.chunks do
-						sum = sum + tableSum({string.byte(v.chunks[i], 1, -1)}) 
-					end
 					table.insert(tbl, {
-						sum = sum,
+						sum = v.sum,
 						func = v.func,
 						channel = v.channel,
 						idx = v.idx,
