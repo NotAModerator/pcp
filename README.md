@@ -37,29 +37,18 @@ Sets the maximum limit in bytes a ping/packet can be before holding data in the 
  # Example
 
 ```lua
---OLD SNIPPET; DOES NOT WORK AS OF 1.0
-local pcp = require("pcp")
-local promise = require("Promise") --make networking easier, optional to be alongside pcp
+local pingpp = require("pingpp") --require ping++
 
---register function(s) to be called once transfer finishes
-pcp.register("tex", function(byteArray, p)
-	if byteArray then 
-		log("Total bytes sent: " .. #byteArray)
-		return
-	end
-	log("progress: " .. p .. "%")
-end, true)
+pingpp.register("myCallback", function(byteArray)
+	log("Total bytes sent:", #byteArray) 
+end, true) --register a new function under the ID "myCallback", with the chunked flag enabled
 
---trigger transfer for "tex"; retries twice at an interval of 8 ticks before terminating.
-local request = net.http:request("https://static.planetminecraft.com/files/resource_media/screenshot/1411/2014-03-15_042718.jpg"):method("GET")
-keybinds:newKeybind("myBind", "key.keyboard.enter"):onPress(function()
-	promise.await(request:send(), 5000):then_(function(stream)
-		local buf = data:createBuffer(stream:available())
-		buf:readFromStream(stream)
-		buf:setPosition(0)
-		local raw = buf:readByteArray()
-		pcp.transfer("tex", {string.byte(raw, 1, -1)}, 2, 8)
-		buf:close()
-	end)
-end, true)
+keybinds:newKeybind("send", "key.keyboard.enter"):onPress(function()
+	local buf, stream = data:createBuffer(), resources:get("resources/avatar.png")
+	buf:readFromStream(stream)
+	buf:setPosition(0)
+	local raw = {string.byte(buf:readByteArray(), 1, -1)} --turn string bytearray into table
+	pingpp.send("myCallback", raw, 2, 7) --send bytearray at a rate of 1 ping/7gt, and retrying twice
+	buf:close()
+end)
 ```
