@@ -1,4 +1,4 @@
-# ping++ v1.0-alpha (formerly PCP)
+# ping++ v1.0
 Implements features to allow for more performance in Figura's pings API.
 
 # Installation
