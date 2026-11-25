@@ -51,23 +51,26 @@ function pings.send(byteArray)
 		local idx = buf:readUShort()
 		local chunk = buf:readByteArray(buf:read())
 		if reg.channels then
-			local _sum, _byteArray = 0, ""
+			local _sum, bytes = 0, ""
 			if not reg.channels[channel] then reg.channels[channel] = {chunks = {}} end
 			reg.channels[channel].chunks[idx] = chunk
-			for _, v in pairs(reg.channels[channel].chunks) do
-				_byteArray = _byteArray .. v
-				_sum = _sum + arraySum({string.byte(v, 1, -1)})
+			for _, v in pairs(reg.channels[channel].chunks) do bytes = bytes .. v end
+			if reg.cache then
+				local cached = reg.cache[hash]
+				if cached and cached[tostring(sum)] then bytes = cached[tostring(sum)].bytes end
 			end
+			local _byteArray = {string.byte(bytes, 1, -1)}
+			_sum = arraySum(_byteArray)
 			if _sum == sum and not reg.channels[channel].closed then
-				reg.callback({string.byte(_byteArray, 1, -1)})
-				reg.channels[channel].closed = true
 				if reg.cache then
 					if not reg.cache[hash] then reg.cache[hash] = {} end
 					reg.cache[hash][tostring(sum)] = {
-						byteArray = _byteArray,
+						bytes = bytes,
 						plr = world.getPlayers()
 					}
 				end
+				reg.callback(_byteArray)
+				reg.channels[channel].closed = true
 			end
 			reg.channels[channel].decay = 0
 		else
@@ -83,10 +86,10 @@ function pings.sync(byteArray)
 	buf:setPosition(0)
 	local id = buf:readByteArray(4)
 	local reg = registeredCallbacks[id]
-	local cachedHash, sum = reg.cache[buf:readByteArray(4)], buf:readLong()
-	if cachedHash then
-		local _byteArray = cachedHash[tostring(sum)].byteArray
-		if cachedHash[tostring(sum)] then reg.callback({string.byte(_byteArray, 1, -1)}) end
+	local hash, sum = reg.cache[buf:readByteArray(4)], buf:readLong()
+	if hash then
+		local cached = hash[tostring(sum)]
+		if cached then reg.callback({string.byte(cached.bytes, 1, -1)}) end
 	end
 end
 
